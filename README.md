@@ -1,13 +1,14 @@
 # IoT Sensor Project
 
 ## System Architecture & Topology
-* Built a heterogeneous sensor node via Wowki which handles three separate data communication types simultaniously: Digital Bus ($I^2C$), Single Wire Bus (OneWire), and Direct Analog Signaling. 
+* Built a heterogeneous sensor node via Wowki which handles three separate data communication types simultaniously: Digital Bus ($I^2C$), Single Wire Bus (OneWire), and Direct Analog Signaling.
+![System Schematic](docs/wokwi_schematic.png)
 
 ## Hardware Interface Specifications 
 | Peripheral Sensor | Sensor Pin |ESP32 GPIO Pin | Interface protocol/Notes |
 | :-- | :-- | :-- | :-- |
 | **BMP180** Pressure | SCL | GPIO 22 | I2C (Serial Clock - 3.3V Logic) |
-| **BMP180** Pressure | SDA | GPIO 23 | I2C (Serial Data - 3.3V Logic) |
+| **BMP180** Pressure | SDA | GPIO 21 | I2C (Serial Data - 3.3V Logic) |
 | **DS18B20** Temperature |  DQ | GPIO 26 | OneWire (Requires external 4.7kΩ pull-up to 3.3V) |
 | **MQ2** Gas | AOUT | GPIO 35 | Analog (12-bit ADC Input /Max 3.3V Tolerance)
 | **MQ2** Gas | VCC | 5V | 5V Power Input (required for internal heater) |
@@ -15,7 +16,7 @@
 
 ## Software Interface Specifications 
 * **Libraries Used** : `<Adafruit_BMP085.h>`, `<OneWire.h>`, `<Wire.h>`, and `<DallasTemperature.h>`.
-* **Data Units**: Temperature in Celsius, Pressure in Pascals, and Gas values as a raw 12-bit ADC integer from 0 to 4095.
+* **Data Units**: Temperature in Celsius, Pressure in Hectopascals, and Gas values as a raw 12-bit ADC integer from 0 to 4095.
 
 ## Bottlenecks & Metrics
 * **OneWire Conversion Latency:** The DS18B20 temperature sensor is known to be slow because of its distinct internal conversion time (up to 750ms for 12-bit resolution). Utilizing synchronous `delay()` functions to wait for this telemetry may bottleneck the timing loop of the other $I^2C$ and Analog sensors which are faster.
@@ -37,3 +38,4 @@ To build, compile, and run this project environment locally without cloud queue 
 
 ### Software
 * Due to limitations in Wokwi, the three sensors were used instead of the BME680. In the future, the plan will be to switch to this sensor when it becomes accessible to me, either on the website or while building a prototype.
+* Issue with Serial print on Wokwi. This will be fixed when a physical ESP32 is used.
