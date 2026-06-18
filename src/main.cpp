@@ -43,7 +43,7 @@ void loop() {
   int rawGasVal = analogRead(MQ2_ANALOG_PIN);
 
   //Print System Telemetry to Serial Monitor
-  Serial.print("\n==== SYSTEM TELEMETRY ====");
+  Serial.println("\n==== SYSTEM TELEMETRY ====");
   
   Serial.print("OneWire Temperature (DS18B20): ");
   Serial.print(temp);
@@ -51,17 +51,17 @@ void loop() {
 
   Serial.print("I2C Temperature (BMP180)");
   Serial.print(bmp180Temp);
-  Serial.print("ºC");
+  Serial.println("ºC");
 
   Serial.print("I2C Pressure (BMP180)");
   Serial.print(pressureHpa);
-  Serial.print("hPa");
+  Serial.println("hPa");
   
   Serial.print("Analog Gas Level (MQ2)");
   Serial.print(rawGasVal);
-  Serial.print("/4095");
+  Serial.println("/4095");
 
-  Serial.print("===================");
+  Serial.println("===================");
   
   // 1-second delay for OneWire data conversion
   delay(1000); 
