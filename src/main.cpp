@@ -16,11 +16,34 @@ DallasTemperature sensor (&onewire);
 //Initialize the BMP180 sensor
 Adafruit_BMP085 bmp;
 
+// Global Variables to hold the latest telemetry data
+int rawGasValue = 0;
+float currentPressureHpa = 0.0;
+float currentTemperatureC = 0.0;
+
+unsigned long lastTemperatureSample = 0;
+
+// Function to read the MQ2 gas sensor
+void readGasSensor() {
+  rawGasValue = analogRead(MQ2_ANALOG_PIN);
+}
+
+// Function to read the DS18B20 temperature sensor
+void readTemperatureSensor() {
+  currentTemperatureC = sensor.getTempCByIndex(0);
+  sensor.requestTemperatures();
+}
+
+// Function to read the BMP180 pressure sensor
+void readPressureSensor() {
+  currentPressureHpa = bmp.readPressure() / 100.0; // Convert pascals to hectopascals
+}
+
 void setup() {
   Serial.begin(115200);
   //Initialize Dallas Library for DS18B20
-  sensor.begin();
-
+  sensor.setWaitForConversion(false); // Tells the library NOT to block the CPU
+  
   //Initialize I2C for BMP180
   if(!bmp.begin()){
     Serial.println("Could not find BMP180 sensor.");
@@ -30,39 +53,31 @@ void setup() {
 }
 
 void loop() {
-  //Get OneWire Data (DS18B20)
-  sensor.requestTemperatures();
-  float temp = sensor.getTempCByIndex(0);
-  
-  //Get I2C Data (BMP180)
-  float bmp180Temp = bmp.readTemperature();
-  float pressurePa = bmp.readPressure();
-  float pressureHpa = pressurePa/100; // Convert pascals to hectopascals
+  // Read the MQ2 gas sensor
+  readGasSensor();
+  // Read the BMP180 pressure sensor
+  readPressureSensor();
 
-  //Get Analog Signal Data (MQ2)
-  int rawGasVal = analogRead(MQ2_ANALOG_PIN);
+  if(millis() - lastTemperatureSample >= 750) { // Sample temperature every 750ms
+    readTemperatureSensor();
+    lastTemperatureSample = millis();
 
-  //Print System Telemetry to Serial Monitor
+    //Print System Telemetry to Serial Monitor
   Serial.println("\n==== SYSTEM TELEMETRY ====");
   
-  Serial.print("OneWire Temperature (DS18B20): ");
-  Serial.print(temp);
+  Serial.print("Temperature (DS18B20): ");
+  Serial.print(currentTemperatureC);
   Serial.println("ºC");
 
-  Serial.print("I2C Temperature (BMP180)");
-  Serial.print(bmp180Temp);
-  Serial.println("ºC");
-
-  Serial.print("I2C Pressure (BMP180)");
-  Serial.print(pressureHpa);
+  Serial.print("Pressure (BMP180)");
+  Serial.print(currentPressureHpa);
   Serial.println("hPa");
   
-  Serial.print("Analog Gas Level (MQ2)");
-  Serial.print(rawGasVal);
+  Serial.print("Gas Level (MQ2)");
+  Serial.print(rawGasValue);
   Serial.println("/4095");
 
   Serial.println("===================");
   
-  // 1-second delay for OneWire data conversion
-  delay(1000); 
+  } 
 }
