@@ -2,6 +2,7 @@
 
 ## System Architecture & Topology
 * Building a heterogeneous sensor node via Wokwi which handles three separate data communication types simultaneously: Digital Bus ($I^2C$), Single Wire Bus (OneWire), and Direct Analog Signaling.
+* **Firmware Architecture:** Migrated from a standard bare-metal sequential loop to a **Dual-Core FreeRTOS Real-Time Architecture** to decouple low-latency sampling from high-latency sensor conversions.
 
 <p align="left">
   <img src="docs/wokwi_schematic_v2.png" width="450" title="System Schematic">
@@ -21,9 +22,20 @@
 * **Libraries Used**: `<Adafruit_BMP085.h>`, `<OneWire.h>`, `<Wire.h>`, and `<DallasTemperature.h>`.
 * **Data Units**: Temperature in Celsius, Pressure in Hectopascals, and Gas values as a raw 12-bit ADC integer from 0 to 4095.
 * **Bus Robustness:** Implemented active hardware handshaking for the $I^2C$ sequence. The firmware utilizes a blocking guardrail (`while(1)`) on initialization failure to ensure the microcontroller halts execution if a hardware communication fault occurs, preventing downstream data corruption.
+* **Multitasking Engine:** Powered by the native FreeRTOS kernel on the ESP32. The traditional `void loop()` is kept entirely empty, handing full execution management over to the RTOS scheduler.
 
-## Bottlenecks & Metrics
-* **OneWire Conversion Latency:** The DS18B20 temperature sensor is known to be slow because of its distinct internal conversion time (up to 750ms for 12-bit resolution). Utilizing synchronous `delay()` functions to wait for this telemetry may bottleneck the timing loop of the other $I^2C$ and Analog sensors which are faster.
+## Real-Time Task Architecture (FreeRTOS)
+To solve timing constraints, the firmware separates operations into independent, concurrent tasks assigned to specific physical CPU cores:
+
+1. **Fast Telemetry Task (Core 1 - Priority 2):** 
+  * Continuously executes high-frequency, non-blocking loops to sample the **MQ2 Analog Gas** and **BMP180 I2C Pressure** sensors. 
+  * Yields via `vTaskDelay(pdMS_TO_TICKS(50))` to maintain deterministic sampling and prevent CPU starvation.
+2. **Slow Telemetry Task (Core 0 - Priority 1):** 
+  * Manages the high-latency **DS18B20 OneWire Temperature** sensor asynchronously.
+  * Leverages `sensor.setWaitForConversion(false)` to send a non-blocking request, allowing the task to sleep via `vTaskDelay(pdMS_TO_TICKS(750))` while the sensor hardware computes data in the background.
+
+## Resolved Bottlenecks & Roadmap
+* **✔️ Resolved: OneWire Conversion Latency:** Eliminated the $750\text{ms}$ CPU freeze caused by synchronous data sampling. By introducing FreeRTOS task prioritization and asynchronous OneWire requests, fast sensors ($I^2C$ and Analog) are sampled continuously on Core 1 while the temperature calculation sleeps on Core 0.
 * **ESP32 ADC Non-Linearity:** The internal Analog-to-Digital Converter (ADC) of the ESP32 is known to have non-linear characteristics near the boundary voltages (0V and 3.3V). Analog voltage attenuation trends from the MQ2 Gas sensor will require software calibration curves to maintain accuracy.
 * **Bus Contention Guardrails:** If the $I^2C$ clock line experiences transient noise or hardware detachment, the firmware execution loop must include non-blocking timeout hooks to prevent total processor starvation.
 * **Calibration Curve for Gas:** Currently, the gas concentration is represented by a 12-bit integer between 0 and 4095. In the future, a calibration curve must be utilized to convert the raw integer to parts-per-million (ppm).
