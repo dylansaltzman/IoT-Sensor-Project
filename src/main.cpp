@@ -42,10 +42,21 @@ void readPressureSensor() {
 
 // --- Task 1: Fast Sensors (Gas & Pressure) ---
 void fastTelemetryTask(void *pvParameters) {
+  const int FILTER_SIZE = 10; // Size of the moving average filter
+  static int gasHistory[FILTER_SIZE] = {0}; // Circular buffer for gas readings
+  static int currentIndex = 0; // Current index in the circular buffer
   while(1) {
     // Execute fast sensor reads
     readGasSensor();
     readPressureSensor();
+    
+    gasHistory[currentIndex] = rawGasValue;
+    currentIndex = (currentIndex + 1) % FILTER_SIZE;
+    long sum = 0;
+    for(int i = 0; i < FILTER_SIZE; i++) {
+      sum += gasHistory[i];
+    }
+    int smoothedGasValue = sum / FILTER_SIZE;
 
     // Print values instantly to the terminal, showing which core is running it
     Serial.print("[Core ");
@@ -57,7 +68,7 @@ void fastTelemetryTask(void *pvParameters) {
     Serial.println("hPa");
     
     Serial.print("Gas Level (MQ2)");
-    Serial.print(rawGasValue);
+    Serial.print(smoothedGasValue);
     Serial.println("/4095");
     
     // Yield control for 50ms so this core can breathe
